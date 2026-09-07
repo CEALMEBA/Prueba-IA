@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agents Pipeline</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 AI Agents Pipeline</h1>
+            <p>Sistema multi-agente para desarrollo automático</p>
+            <div class="status-badge">
+                <span class="status-dot"></span>
+                Sistema Activo
+            </div>
+        </header>
+
+        <!-- Panel de Log en tiempo real -->
+        <div class="log-panel" id="logPanel">
+            <div class="log-panel-header">
+                <h3><i class="fas fa-code"></i> Log de Ejecución</h3>
+                <span class="log-status" id="logStatus">⏳ Esperando...</span>
+            </div>
+            <div class="log-panel-body" id="logPanelBody">
+                <div class="log-entry system">
+                    <span class="log-icon">🤖</span>
+                    <span class="log-message">Sistema listo. Envía un ticket para comenzar.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat -->
+        <div class="chat-container" id="chatContainer">
+            <div class="messages" id="messages">
+                <div class="message system">
+                    <div class="message-content">
+                        <strong>¡Bienvenido al Sistema de Agentes Colaborativos!</strong><br>
+                        Envíame un ticket de feature y lo convertiré en código funcional.<br>
+                        <small style="opacity:0.8;">Ejemplo: "Crear un juego de Flappy Bird"</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="input-container">
+            <div class="input-wrapper">
+                <textarea 
+                    id="messageInput" 
+                    placeholder="Describe tu ticket de feature..."
+                    rows="2"
+                    maxlength="5000"
+                ></textarea>
+                <div class="input-actions">
+                    <span class="char-counter" id="charCounter">0/5000</span>
+                    <button id="sendButton" class="send-btn">
+                        <i class="fas fa-paper-plane"></i>
+                        Enviar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="showLogBtn" class="control-btn">
+                <i class="fas fa-chevron-down"></i>
+                Ver Log Detallado
+            </button>
+            <button id="testPreviewBtn" class="control-btn" style="background: #4caf50; color: white;">
+                <i class="fas fa-vial"></i> Probar Visor
+            </button>
+            <button id="openFullscreenBtn" class="control-btn" style="background: #e67e22; color: white;">
+                <i class="fas fa-expand"></i> Abrir en Pantalla Completa
+            </button>
+            <button id="clearSessionBtn" class="control-btn warning">
+                <i class="fas fa-undo"></i>
+                Nueva Sesión
+            </button>
+        </div>
+
+        <!-- Panel de código generado -->
+        <div class="code-panel" id="codePanel" style="display:none;">
+            <div class="code-panel-header">
+                <h3><i class="fas fa-file-code"></i> Código Generado</h3>
+                <div class="code-actions">
+                    <span class="code-language" id="codeLanguage">📄</span>
+                    <button id="runCodeBtn" class="code-btn run-btn" style="display:none;">
+                        <i class="fas fa-play"></i> Ejecutar HTML
+                    </button>
+                    <button id="openNewTabBtn" class="code-btn" style="display:none; background: #e67e22;">
+                        <i class="fas fa-external-link-alt"></i> Abrir en Nueva Pestaña
+                    </button>
+                    <button id="copyCodeBtn" class="code-btn">
+                        <i class="fas fa-copy"></i> Copiar
+                    </button>
+                    <button id="downloadCodeBtn" class="code-btn">
+                        <i class="fas fa-download"></i> Descargar
+                    </button>
+                </div>
+            </div>
+            <div class="code-panel-body">
+                <pre><code id="generatedCode">// El código aparecerá aquí...</code></pre>
+            </div>
+        </div>
+
+        <div class="log-container" id="logContainer" style="display: none;">
+            <div class="log-header">
+                <h3><i class="fas fa-chart-line"></i> Log Detallado</h3>
+                <span class="log-info" id="logInfo">0 pasos</span>
+            </div>
+            <div id="logContent">
+                <p class="no-log">No hay datos de ejecución aún</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel de vista previa - PANTALLA COMPLETA -->
+    <div class="preview-panel" id="previewPanel">
+        <div class="preview-header">
+            <h3><i class="fas fa-play-circle"></i> <span id="previewTitle">Vista Previa</span></h3>
+            <div class="preview-actions">
+                <span id="previewType" class="preview-type">🌐</span>
+                <button id="openNewWindowBtn" class="preview-btn" title="Abrir en nueva ventana">
+                    <i class="fas fa-external-link-alt"></i>
+                </button>
+                <button id="closePreviewBtn" class="close-btn" title="Cerrar">✕</button>
+            </div>
+        </div>
+        <div class="preview-body" id="previewBody">
+            <iframe id="gameFrame" sandbox="allow-scripts allow-modals"></iframe>
+            <div id="textPreview" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
