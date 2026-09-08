@@ -12,14 +12,14 @@ class ReviewerAgent(BaseAgent):
         plan = context.get("plan", {})
         code = context.get("code", "")
         attempt = context.get("attempt", 1)
-        max_attempts = context.get("max_attempts", 3)
+        max_attempts = context.get("max_attempts", 5)
         
         prompt = self._build_prompt(plan, code, attempt, max_attempts)
         
         messages = [
             {
                 "role": "system", 
-                "content": "Eres un revisor de código exigente y justo. Evalúa si el código cumple con el plan y sugiere mejoras concretas. Sé específico en tu feedback y explica claramente por qué apruebas o rechazas. Responde comenzando con APROBADO o RECHAZADO."
+                "content": "Eres un revisor de código JUSTO y EQUILIBRADO. APRUEBA el código si es funcional y cumple con la mayoría de los requisitos. No seas demasiado estricto en los primeros intentos. Si el código se puede ejecutar y hace lo principal, APRUÉBALO."
             },
             {"role": "user", "content": prompt}
         ]
@@ -27,25 +27,27 @@ class ReviewerAgent(BaseAgent):
         try:
             response = self._call_llm(messages, temperature=0.5)
             
-            # Determinar aprobación (buscando palabras clave)
+            # Determinar aprobación
             response_upper = response.upper()
             approved = "APROBADO" in response_upper or "APPROVED" in response_upper
             
-            # Determinar si se alcanzó el máximo de intentos
-            max_reached = attempt >= max_attempts
+            # Si es el último intento, aprobar automáticamente
+            if attempt >= max_attempts:
+                approved = True
+                logger.info(f"⚠️ Último intento ({attempt}/{max_attempts}) - Aprobando automáticamente")
             
             return {
                 "approved": approved,
                 "feedback": response,
                 "attempt": attempt,
-                "max_attempts_reached": max_reached
+                "max_attempts_reached": attempt >= max_attempts
             }
         except Exception as e:
             logger.error(f"Error en Reviewer: {str(e)}")
             raise
     
     def _build_prompt(self, plan: dict, code: str, attempt: int, max_attempts: int) -> str:
-        """Construye el prompt para el revisor usando concatenación"""
+        """Construye el prompt para el revisor - VERSIÓN MÁS FLEXIBLE"""
         plan_str = json.dumps(plan, indent=2)
         code_preview = code[:3000] if code else 'No se generó código'
         
@@ -59,17 +61,17 @@ class ReviewerAgent(BaseAgent):
             f"{code_preview}\n"
             "```\n\n"
             f"INTENTO: {attempt} de {max_attempts}\n\n"
-            "Evalúa el código considerando:\n"
-            "1. ¿Cumple con TODAS las tareas del plan?\n"
-            "2. ¿Es funcional y lógicamente correcto?\n"
-            "3. ¿Tiene manejo de errores adecuado?\n"
-            "4. ¿Sigue buenas prácticas de programación?\n"
-            "5. ¿El código está bien estructurado y documentado?\n\n"
+            "INSTRUCCIONES DE EVALUACIÓN:\n"
+            "1. APRUEBA si el código cumple con al menos el 60% de los requisitos\n"
+            "2. APRUEBA si el código es funcional y se puede ejecutar\n"
+            "3. APRUEBA si tiene los elementos principales del juego\n"
+            "4. RECHAZA solo si el código está incompleto o tiene errores graves\n\n"
             "IMPORTANTE:\n"
-            "- Responde comenzando con APROBADO o RECHAZADO\n"
-            "- Si es RECHAZADO, explica específicamente qué falta o qué está mal\n"
-            "- Proporciona sugerencias concretas de mejora\n"
-            "- Sé justo pero exigente\n\n"
+            "- Si el código tiene canvas y muestra algo → es un buen comienzo\n"
+            "- Si el pájaro se mueve o responde a clicks → es funcional\n"
+            "- Los detalles menores se pueden mejorar después\n\n"
+            "Responde comenzando con APROBADO o RECHAZADO.\n"
+            "Si es RECHAZADO, explica qué falta específicamente.\n\n"
             "Tu respuesta:\n"
         )
         

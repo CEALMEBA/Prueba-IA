@@ -19,17 +19,7 @@ class CoderAgent(BaseAgent):
         messages = [
             {
                 "role": "system", 
-                "content": """Eres un desarrollador senior experto. 
-Genera código funcional siguiendo las mejores prácticas.
-Incluye comentarios explicativos y manejo de errores.
-El código debe ser completo y estar listo para producción.
-
-IMPORTANTE: 
-- Si es HTML, DEBE ser un archivo COMPLETO con <!DOCTYPE html>, <html>, <head>, <body>
-- Si es Python, debe ser código ejecutable
-- Si es JavaScript, debe ser código funcional
-- NO incluyas explicaciones fuera del código, SOLO el código en bloques markdown
-- El código debe ser AUTO-CONTENIDO y no depender de recursos externos"""
+                "content": "Eres un desarrollador senior experto en juegos HTML5 con canvas. Genera código FUNCIONAL y COMPLETO en un solo archivo HTML. El juego debe ser JUGABLE inmediatamente. REGLAS: Usa canvas con requestAnimationFrame. Eventos: click y keydown (ESPACIO). Game Over con reinicio (ESPACIO). El código debe ser AUTO-CONTENIDO."
             },
             {"role": "user", "content": prompt}
         ]
@@ -40,11 +30,9 @@ IMPORTANTE:
             # Extraer código
             code = self._extract_code(response)
             
-            # Si no hay código, usar la respuesta completa
             if not code:
                 code = response
             
-            # Detectar el lenguaje
             language = self._detect_language(code)
             
             return {
@@ -61,50 +49,48 @@ IMPORTANTE:
         plan_str = json.dumps(plan, indent=2)
         
         prompt = (
-            "Implementa el siguiente plan en código funcional:\n\n"
-            f"Plan: {plan_str}\n\n"
-            "Requisitos:\n"
-            "- Código funcional con todas las tareas implementadas\n"
-            "- Comentarios explicativos\n"
-            "- Manejo de errores adecuado\n"
-            "- Buenas prácticas de programación\n"
-            "- Si es HTML, debe ser un archivo COMPLETO con DOCTYPE\n"
-            "- El código debe ser AUTO-CONTENIDO\n\n"
-            "RESPONDE SOLO CON EL CÓDIGO EN BLOQUES DE CÓDIGO MARKDOWN.\n"
-            "NO incluyas explicaciones fuera de los bloques de código."
+            "Genera código HTML COMPLETO y FUNCIONAL según este plan:\n\n"
+            f"PLAN:\n{plan_str}\n\n"
+            "REQUISITOS OBLIGATORIOS:\n"
+            "- Archivo HTML ÚNICO con <!DOCTYPE html>\n"
+            "- CSS en <style> dentro del <head>\n"
+            "- JavaScript en <script> al final del <body>\n"
+            "- Usa <canvas> con requestAnimationFrame\n"
+            "- Eventos: click y keydown (ESPACIO)\n"
+            "- Game Over con reinicio (ESPACIO)\n\n"
+            "SI ES UN JUEGO DEBE TENER:\n"
+            "- Gráficos en canvas\n"
+            "- Interacción (click/teclado)\n"
+            "- Puntuación\n"
+            "- Game Over con reinicio\n"
         )
         
         if feedback:
             prompt += (
-                f"\n\n⚠️ FEEDBACK DEL REVISOR (Intento {attempt}):\n"
+                f"\n\nFEEDBACK DEL REVISOR (Intento {attempt}):\n"
                 f"{feedback}\n\n"
                 "IMPORTANTE: Corrige el código basándote en este feedback.\n"
+                "Asegúrate de que el código sea COMPLETO y FUNCIONAL.\n"
             )
+        
+        prompt += (
+            "\nResponde SOLO con el código completo en un bloque de código markdown.\n"
+            "NO incluyas explicaciones.\n"
+        )
         
         return prompt
     
     def _extract_code(self, response: str) -> str:
-        """Extrae el código de la respuesta"""
-        # Buscar bloques de código con o sin lenguaje especificado
         code_blocks = re.findall(r'```(?:\w+)?\n([\s\S]*?)```', response, re.DOTALL)
-        
         if code_blocks:
-            # Unir todos los bloques de código
             return "\n\n".join(code_blocks)
-        
-        # Si no hay bloques, devolver la respuesta completa
         return response
     
     def _detect_language(self, code: str) -> str:
-        """Detecta el lenguaje del código"""
-        if re.search(r'<!DOCTYPE\s+html|<html|<body|<div|<canvas', code, re.IGNORECASE):
+        if re.search(r'<!DOCTYPE\s+html|<html', code, re.IGNORECASE):
             return 'html'
-        if re.search(r'def\s+\w+|class\s+\w+:|import\s+\w+|print\(', code):
+        if re.search(r'def\s+\w+|class\s+\w+:|import\s+\w+', code):
             return 'python'
-        if re.search(r'function\s+\w+|const\s+\w+\s*=|let\s+\w+\s*=|var\s+\w+\s*=|=>', code):
+        if re.search(r'function\s+\w+|const\s+\w+\s*=|let\s+\w+\s*=', code):
             return 'javascript'
-        if re.search(r'SELECT|INSERT|UPDATE|CREATE\s+TABLE', code, re.IGNORECASE):
-            return 'sql'
-        if re.search(r'^{.*}$', code, re.DOTALL):
-            return 'json'
-        return 'text'
+        return 'html'
