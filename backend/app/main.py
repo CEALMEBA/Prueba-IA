@@ -10,13 +10,12 @@ import logging
 from pathlib import Path
 from dotenv import load_dotenv
 from .models.schemas import ChatRequest, ChatResponse
-from .orchestrator.pipeline import AgentPipeline
+from .orchestrator.pipeline_v2 import AgentPipelineV2  # ← NUEVO
 
-# Cargar variables de entorno desde .env
+# Cargar variables de entorno
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(env_path)
 
-# Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -26,7 +25,6 @@ FRONTEND_DIR = BASE_DIR / "frontend"
 
 app = FastAPI()
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,19 +34,16 @@ app.add_middleware(
 )
 
 sessions: Dict[str, Dict] = {}
-MAX_ATTEMPTS = int(os.getenv("MAX_ATTEMPTS", 3))
+MAX_ATTEMPTS = int(os.getenv("MAX_ATTEMPTS", 5))
 
-# Servir archivos estáticos de frontend
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
 @app.get("/")
 async def root():
-    """Servir el frontend"""
     return FileResponse(str(FRONTEND_DIR / "index.html"))
 
 @app.get("/{file_path:path}")
 async def serve_static(file_path: str):
-    """Servir archivos estáticos del frontend"""
     file_path_clean = file_path.replace("../", "").replace("..\\", "")
     full_path = FRONTEND_DIR / file_path_clean
     
@@ -65,7 +60,7 @@ async def chat(request: ChatRequest):
         if session_id not in sessions:
             sessions[session_id] = {
                 "history": [],
-                "pipeline": AgentPipeline(max_attempts=MAX_ATTEMPTS)
+                "pipeline": AgentPipelineV2(max_attempts=MAX_ATTEMPTS)  # ← NUEVO
             }
         
         session = sessions[session_id]
@@ -105,42 +100,54 @@ async def get_session_log(session_id: str):
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    log_data = sessions[session_id]["pipeline"].get_execution_log()
-    history = sessions[session_id]["history"]
-    
-    # Asegurar que devuelve JSON válido
     return {
-        "log": log_data,
-        "history": history
+        "log": sessions[session_id]["pipeline"].get_execution_log(),
+        "history": sessions[session_id]["history"]
     }
 
+@app.delete("/api/session/{session_id}")
+async def delete_session(session_id: str):
+    if session_id in sessions:
+        del sessions[session_id]
+        return {"status": "deleted"}
+    raise HTTPException(status_code=404, detail="Session not found")
+
+@app.get("/api/sessions")
+async def list_sessions():
+    return {"sessions": list(sessions.keys())}
+
 def build_response(result: Dict) -> str:
-    if result.get("status") == "approved":
+    """Construye la respuesta final para el usuario según el tipo"""
+    tipo = result.get("type", "codigo")
+    
+    if tipo == "codigo":
+        if result.get("status") == "approved" or result.get("status") == "approved_forced":
+            return (
+                "✅ **Código Generado**\n\n"
+                "**Resumen del Plan:**\n"
+                f"{result['plan'].get('summary', 'Plan implementado')}\n\n"
+                "**Código:**\n"
+                "```python\n"
+                f"{result.get('code', 'No se generó código')}\n"
+                "```\n\n"
+                f"*Generado en {result.get('attempts', 1)} intento(s)*\n"
+            )
+        else:
+            return f"❌ No se pudo generar el código. {result.get('error', '')}"
+    
+    elif tipo == "chat":
+        return f"💬 {result.get('response', 'No se pudo procesar la pregunta')}"
+    
+    elif tipo == "diseño":
+        design = result.get('design', {})
         return (
-            "✅ **Ticket Aprobado**\n\n"
-            "**Resumen del Plan:**\n"
-            f"{result['plan'].get('summary', 'Plan implementado')}\n\n"
-            "**Código Implementado:**\n"
-            "```python\n"
-            f"{result.get('code', 'No se generó código')}\n"
-            "```\n\n"
-            "**Feedback del Revisor:**\n"
-            f"{result.get('feedback', 'Sin feedback')}\n\n"
-            f"*Aprobado en {result.get('attempts', 1)} intento(s)*\n"
+            "🎨 **Recomendaciones de Diseño**\n\n"
+            f"**Visual:** {design.get('visual', '')}\n\n"
+            f"**UX:** {design.get('ux', '')}\n\n"
+            f"**UI:** {design.get('ui', '')}\n\n"
+            "**Principios:**\n" + "\n".join([f"- {p}" for p in design.get('principios', [])]) + "\n\n"
+            "**Recomendaciones:**\n" + "\n".join([f"- {r}" for r in design.get('recomendaciones', [])])
         )
-    elif result.get("status") == "failed":
-        return (
-            "❌ **No se pudo completar**\n\n"
-            "**Resumen del Plan:**\n"
-            f"{result['plan'].get('summary', 'Plan implementado')}\n\n"
-            "**Código:**\n"
-            "```python\n"
-            f"{result.get('code', 'No se generó')}\n"
-            "```\n\n"
-            "**Feedback:**\n"
-            f"{result.get('feedback', 'Sin feedback')}\n\n"
-            f"*Máximo de {result.get('attempts', MAX_ATTEMPTS)} intentos*\n"
-            "💡 Puedes pedir cambios específicos.\n"
-        )
+    
     else:
-        return f"⚠️ Estado desconocido: {result}"
+        return f"⚠️ No se pudo procesar la petición. {result.get('error', '')}"
